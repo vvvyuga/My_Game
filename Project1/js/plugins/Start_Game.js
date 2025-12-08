@@ -1,146 +1,229 @@
 /*:
  * @target MZ
- * @plugindesc Character selection screen: top portraits, left info, right bust, hover highlight from window.png
+ * @plugindesc Full Character Select Screen with mouse, animation, wrapped bio, background, up to 6 characters
+ *
+ * @param InfoWindowX
+ * @default 40
+ * @param InfoWindowY
+ * @default 260
+ * @param InfoWindowW
+ * @default 420
+ * @param InfoWindowH
+ * @default 260
+ *
+ * @param BustX
+ * @default 980
+ * @param BustY
+ * @default 360
+ *
+ * @param PortraitStartX
+ * @default 240
+ * @param PortraitY
+ * @default 90
+ * @param PortraitSpacing
+ * @default 140
+ *
+ * @param SmallScale
+ * @default 1.0
+ * @param LargeScale
+ * @default 1.0
+ *
+ * @param UnselectedOpacity
+ * @default 120
  */
 
 (() => {
-    const characters = [
-        {
-            name: "Osmond",
-            klass: "Scout",
-            bio: "Independent scout-assassin from the Gyorna group. Kills for principles, not money. Skilled with melee weapons and tracking targets.",
-            smallPortrait: "portrait1_small",
-            largePortrait: "portrait1_large",
-            actorId: 1
-        },
-        {
-            name: "Patricia",
-            klass: "Former Politician",
-            bio: "Renegade, formerly held a high rank in Abimhore, now a fugitive half-blood. Skilled at gaining influence over others.",
-            smallPortrait: "portrait2_small",
-            largePortrait: "portrait2_large",
-            actorId: 2
-        },
-        {
-            name: "Devor",
-            klass: "Former Miner",
-            bio: "Mutant, strong in hand-to-hand combat.",
-            smallPortrait: "portrait3_small",
-            largePortrait: "portrait3_large",
-            actorId: 3
-        }
-    ];
+  const params = PluginManager.parameters("CharacterSelect");
 
-    class Scene_CharacterSelect extends Scene_MenuBase {
-        initialize() {
-            super.initialize();
-            this._index = 0;
-        }
+  const CFG = {
+    infoX: Number(params.InfoWindowX),
+    infoY: Number(params.InfoWindowY),
+    infoW: Number(params.InfoWindowW),
+    infoH: Number(params.InfoWindowH),
 
-        create() {
-            super.create();
-            this.createSmallPortraits();
-            this.createLargePortrait();
-            this.createInfoWindow();
-            this.updateSelection();
-        }
+    bustX: Number(params.BustX),
+    bustY: Number(params.BustY),
 
-        // Горизонтальный список портретов сверху
-        createSmallPortraits() {
-            this._smallPortraits = [];
-            this._hoverSprites = [];
-            const startX = 150;
-            const startY = 100;
-            const spacing = 100;
+    portX: Number(params.PortraitStartX),
+    portY: Number(params.PortraitY),
+    spacing: Number(params.PortraitSpacing),
 
-            characters.forEach((ch, i) => {
-                const sprite = new Sprite(ImageManager.loadPicture(ch.smallPortrait));
-                sprite.x = startX + spacing * i;
-                sprite.y = startY;
-                sprite.anchor.x = 0.5;
-                sprite.anchor.y = 0.5;
-                this.addChild(sprite);
-                this._smallPortraits.push(sprite);
+    smallScale: Number(params.SmallScale),
+    largeScale: Number(params.LargeScale),
 
-                // Ховер из window.png
-                const hover = new Sprite(ImageManager.loadSystem("window"));
-                hover.x = sprite.x;
-                hover.y = sprite.y;
-                hover.anchor.x = 0.5;
-                hover.anchor.y = 0.5;
-                hover.opacity = 0;
-                this.addChild(hover);
-                this._hoverSprites.push(hover);
-            });
-        }
+    unselectedOpacity: Number(params.UnselectedOpacity)
+  };
 
-        // Большой бюст справа
-        createLargePortrait() {
-            this._largePortrait = new Sprite();
-            this._largePortrait.anchor.x = 0.5;
-            this._largePortrait.anchor.y = 0.5;
-            this._largePortrait.x = Graphics.width - 300; // справа
-            this._largePortrait.y = 250;
-            this.addChild(this._largePortrait);
-        }
+  const characters = [
+    {
+      name: "Osmond",
+      klass: "Scout",
+      bio: "Independent assassin from Gyorn.\nKills for principles, not money.\n\nSkilled with tracking and daggers.",
+      small: "portrait1_small",
+      large: "portrait1_large",
+      actorId: 1
+    },
+    {
+      name: "Patricia",
+      klass: "Renegade",
+      bio: "Former Abundhord official.\nNow a fugitive.\n\nManipulates people with ease.",
+      small: "portrait2_small",
+      large: "portrait2_large",
+      actorId: 2
+    },
+    {
+      name: "Devor",
+      klass: "Mutant",
+      bio: "Strong melee fighter.\nHardened by the mines.\n\nHates authority.",
+      small: "portrait3_small",
+      large: "portrait3_large",
+      actorId: 3
+    }
+  ];
 
-        // Информация слева
-        createInfoWindow() {
-            const w = 400;
-            const h = 300;
-            const x = 50;
-            const y = 200;
-            this._infoWindow = new Window_Base(new Rectangle(x, y, w, h));
-            this.addChild(this._infoWindow);
-        }
-
-        update() {
-            super.update();
-            if (Input.isRepeated("right")) this.changeIndex(1);
-            if (Input.isRepeated("left")) this.changeIndex(-1);
-            if (Input.isTriggered("ok")) this.selectCharacter();
-            if (Input.isTriggered("escape")) SceneManager.pop();
-        }
-
-        changeIndex(delta) {
-            this._index = (this._index + delta + characters.length) % characters.length;
-            this.updateSelection();
-        }
-
-        updateSelection() {
-            const ch = characters[this._index];
-
-            // Подсветка выбранного портрета через ховер
-            this._hoverSprites.forEach((hover, i) => {
-                hover.opacity = i === this._index ? 128 : 0; // полупрозрачный эффект
-            });
-
-            // Обновляем большой бюст
-            this._largePortrait.bitmap = ImageManager.loadPicture(ch.largePortrait);
-
-            // Обновляем инфо
-            this._infoWindow.contents.clear();
-            this._infoWindow.drawText(ch.name, 0, 0, 400, "left");
-            this._infoWindow.drawText(ch.klass, 0, 32, 400, "left");
-            this._infoWindow.drawText("----------------------", 0, 64, 400, "left");
-            this._infoWindow.drawText(ch.bio, 0, 96, 400, "left");
-        }
-
-        selectCharacter() {
-            const ch = characters[this._index];
-            $gameParty._actors = [];
-            $gameParty.addActor(ch.actorId);
-
-            SceneManager.pop();
-            SceneManager.goto(Scene_Map);
-        }
+  class Scene_CharacterSelect extends Scene_MenuBase {
+    initialize() {
+      super.initialize();
+      this._index = 0;
     }
 
-    // Перехват New Game
-    const _Scene_Title_commandNewGame = Scene_Title.prototype.commandNewGame;
-    Scene_Title.prototype.commandNewGame = function() {
-        _Scene_Title_commandNewGame.call(this);
-        SceneManager.push(Scene_CharacterSelect);
-    };
+    create() {
+      super.create();
+
+      this.createBackground();
+      this.createPortraits();
+      this.createBust();
+      this.createInfo();
+      this.updateSelection();
+    }
+
+    createBackground() {
+      this._bg = new Sprite(ImageManager.loadPicture("Panel_BG"));
+      this.addChild(this._bg);
+    }
+
+    createPortraits() {
+      this._portraits = [];
+
+      characters.forEach((ch, i) => {
+        const sp = new Sprite(ImageManager.loadPicture(ch.small));
+        sp.x = CFG.portX + CFG.spacing * i;
+        sp.y = CFG.portY;
+        sp.anchor.set(0.5);
+        sp.scale.set(CFG.smallScale);
+        this.addChild(sp);
+        this._portraits.push(sp);
+      });
+    }
+
+    createBust() {
+      this._bust = new Sprite();
+      this._bust.anchor.set(0.5);
+      this._bust.x = CFG.bustX;
+      this._bust.y = CFG.bustY;
+      this._bust.scale.set(CFG.largeScale);
+      this.addChild(this._bust);
+    }
+
+    createInfo() {
+      this._info = new Window_Base(
+        new Rectangle(CFG.infoX, CFG.infoY, CFG.infoW, CFG.infoH)
+      );
+      this._info.opacity = 255;
+      this.addChild(this._info);
+    }
+
+    update() {
+      super.update();
+
+      if (Input.isRepeated("right")) this.changeIndex(1);
+      if (Input.isRepeated("left")) this.changeIndex(-1);
+      if (Input.isTriggered("ok")) this.select();
+      
+      this.updateMouse();
+    }
+
+    updateMouse() {
+      if (!TouchInput.isMoved()) return;
+
+      this._portraits.forEach((p, i) => {
+        const dx = TouchInput.x - p.x;
+        const dy = TouchInput.y - p.y;
+        if (Math.abs(dx) < 50 && Math.abs(dy) < 50) {
+          this._index = i;
+          this.updateSelection();
+        }
+      });
+
+      if (TouchInput.isTriggered()) this.select();
+    }
+
+    changeIndex(d) {
+      this._index = (this._index + d + characters.length) % characters.length;
+      this.updateSelection();
+    }
+
+    updateSelection() {
+      const ch = characters[this._index];
+
+      this._portraits.forEach((p, i) => {
+        p.opacity = i === this._index ? 255 : CFG.unselectedOpacity;
+      });
+
+      this._bust.bitmap = ImageManager.loadPicture(ch.large);
+      this._info.contents.clear();
+
+      const text =
+`${ch.name}
+${ch.klass}
+
+${ch.bio}`;
+
+      this.drawFormattedText(this._info, text, 0, 0);
+    }
+
+    drawFormattedText(win, text, x, y) {
+      const lines = text.split("\n");
+      const maxWidth = win.contents.width;
+
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === "") {
+          y += 28;
+          continue;
+        }
+
+        const words = lines[i].split(" ");
+        let buffer = "";
+
+        for (let w = 0; w < words.length; w++) {
+          const test = buffer + words[w] + " ";
+          if (win.contents.measureTextWidth(test) > maxWidth) {
+            win.drawText(buffer, x, y, maxWidth);
+            buffer = words[w] + " ";
+            y += 28;
+          } else buffer = test;
+        }
+
+        win.drawText(buffer, x, y, maxWidth);
+        y += 28;
+      }
+    }
+
+    select() {
+      const ch = characters[this._index];
+      $gameParty._actors = [];
+      $gameParty.addActor(ch.actorId);
+      SceneManager.goto(Scene_Map);
+    }
+  }
+
+  const _Scene_Title_commandNewGame = Scene_Title.prototype.commandNewGame;
+  Scene_Title.prototype.commandNewGame = function () {
+    _Scene_Title_commandNewGame.call(this);
+    SceneManager.push(Scene_CharacterSelect);
+  };
+window.testCharacterSelect = function() {
+  SceneManager.goto(Scene_CharacterSelect);
+};
 
 })();
